@@ -1,0 +1,108 @@
+#!/bin/bash
+
+SYNAPSES_FILE="synapses.json"
+
+#####################
+# Directories check #
+#####################
+
+# Ensure synapses.json exists
+ensure_synapses_json_exists() {
+    if [ ! -f "$SYNAPSES_FILE" ]; then
+        echo '{"tools_installed": {}}' > "$SYNAPSES_FILE" # Create a new JSON file with an empty tools_installed object
+    fi
+}
+
+# Ensure synapse_tools directory exists
+ensure_synapse_tools_exists() {
+    if [ ! -d "synapse_tools" ]; then
+        echo "Creating synapse_tools directory..."
+        mkdir synapse_tools
+    fi
+}
+
+#####################
+# JSON management   #
+####################
+
+# Update synapses.json after install
+add_package_to_synapses_json() {
+    local package="$1"
+    local version="$2"
+    ensure_synapses_json_exists
+    # Use jq to add the package and version to the JSON file
+    jq --arg pkg "$package" --arg ver "$version" '.tools_installed[$pkg] = $ver' "$SYNAPSES_FILE" > tmp.$$.json && mv tmp.$$.json "$SYNAPSES_FILE"
+}
+
+# Update synapses.json after uninstall
+remove_package_from_synapses_json() {
+    local package="$1"
+    ensure_synapses_json_exists
+    # Use jq to remove the package from the JSON file
+    jq --arg pkg "$package" 'del(.tools_installed[$pkg])' "$SYNAPSES_FILE" > tmp.$$.json && mv tmp.$$.json "$SYNAPSES_FILE"
+}
+
+#####################
+# File installation #
+####################
+
+# Function to install a file
+install_file() {
+    local tool="$1"
+    local version="$2:latest" # You'll need to pass the version when calling this function
+    ensure_synapse_tools_exists
+    curl -o "synapse_tools/${tool}.py" "https://raw.githubusercontent.com/FanaHOVA/homebrew-synapse/main/tools/${tool}.py" && \
+    add_package_to_synapses_json "$tool" "$version"
+}
+
+# Function to uninstall a file
+uninstall_file() {
+    local tool="$1"
+    if [ -d "synapse_tools" ]; then
+        rm -f "synapse_tools/${tool}.py" && \
+        remove_package_from_synapses_json "$tool"
+    fi
+}
+
+install_all_tools() {
+    ensure_synapses_json_exists
+    # Read the list of tools and their versions, then install each one
+    local tools
+    tools=$(jq -r '.tools_installed | to_entries | .[] | "\(.key) \(.value)"' "$SYNAPSES_FILE")
+    while read -r tool version; do
+        echo "Installing $tool, version $version"
+        install_file "$tool" "$version"
+    done <<< "$tools"
+}
+
+#################
+# Command logic #
+#################
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 {install|uninstall} <tool>"
+    exit 1
+fi
+
+command="$1"
+tool="$2"
+version="$3"
+
+case "$command" in
+    install)
+        install_file "$tool" "$version"
+        ;;
+    uninstall)
+        uninstall_file "$tool"
+        ;;
+    install-all)
+        install_all_tools
+        ;;
+    *)
+        echo "Invalid command: $command"
+        echo "Usage: $0 {install|uninstall} <tool>"
+        exit 1
+        ;;
+esac
+
+exit 0
