@@ -4,9 +4,9 @@ Homebrew tap for Synapse, the installer of Neuralib packages.
 
 ## Installation
 
-```
+```bash
 brew tap fanahova/synapse
-brew install fanahova/synapse/synapse
+brew install synapse # Or fanahova/synapse/synapse
 ```
 
 ## Usage
