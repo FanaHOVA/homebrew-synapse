@@ -26,7 +26,7 @@ class GoogleCalendar:
         creds = None
         
         flow = InstalledAppFlow.from_client_secrets_file(
-        join(dirname(dirname(dirname(abspath(__file__)))), 'credentials.json'), 
+        join(dirname(dirname(abspath(__file__))), 'credentials.json'), 
         SCOPES
         )
         
